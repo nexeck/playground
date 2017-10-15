@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -48,6 +49,7 @@ func startServer() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(mw.NewZapLogger(logger))
+	r.Use(mw.NewPrometheusMetrics("playground"))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Heartbeat("/heartbeat"))
 
@@ -66,6 +68,10 @@ func startServer() {
 
 	r.Get("/panic", func(w http.ResponseWriter, r *http.Request) {
 		panic("oops")
+	})
+
+	r.Get("/wait", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(time.Millisecond * time.Duration(rand.Intn(500)))
 	})
 
 	srv := http.Server{
