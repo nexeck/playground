@@ -1,12 +1,18 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/valve"
+	mw "github.com/nexeck/playground/pkg/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 )
 
@@ -33,12 +39,15 @@ func startServer() {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
+	valv := valve.New()
+	baseCtx := valv.Context()
+
 	r := chi.NewRouter()
 
 	// A good base middleware stack
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	r.Use(mw.NewZapLogger(logger))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Heartbeat("/heartbeat"))
 
@@ -55,11 +64,43 @@ func startServer() {
 		w.Write([]byte("hi"))
 	})
 
-	logger.Info("Starting Server",
-		zap.String("Bind", bind),
-	)
+	r.Get("/panic", func(w http.ResponseWriter, r *http.Request) {
+		panic("oops")
+	})
+
+	srv := http.Server{
+		Addr:    bind,
+		Handler: chi.ServerBaseContext(baseCtx, r),
+	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for range c {
+			// sig is a ^C, handle it
+			fmt.Println("shutting down..")
+
+			// first valv
+			valv.Shutdown(20 * time.Second)
+
+			// create context with timeout
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+
+			// start http shutdown
+			srv.Shutdown(ctx)
+
+			// verify, in worst case call cancel via defer
+			select {
+			case <-time.After(21 * time.Second):
+				fmt.Println("not all connections done")
+			case <-ctx.Done():
+
+			}
+		}
+	}()
 
 	logger.Error("Http Server",
-		zap.Error(http.ListenAndServe(bind, r)),
+		zap.Error(srv.ListenAndServe()),
 	)
 }

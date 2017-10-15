@@ -15,6 +15,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/go-chi/valve"
+  packages = ["."]
+  revision = "9e45288364f420dd8e094fab4f64437fca5245a6"
+
+[[projects]]
+  branch = "master"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "130e6b02ab059e7b717a096f397c5b60111cae74"
@@ -88,6 +94,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f9b18c3ec08516ba2f4517d4d5f389ec2c2949f92e28f0249aec7d8b63fd0a85"
+  inputs-digest = "20bff683ce905fb5b06b7f03a22b9a98819e5f73d1c3de11dbeb94b8813d443b"
   solver-name = "gps-cdcl"
   solver-version = 1
